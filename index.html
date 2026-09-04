@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Where Is My Train — RailTrack India</title>
+<link rel="preconnect" href="https://unpkg.com">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{--bg:#111214;--panel:#1b1c1f;--nav:#222c3c;--blue:#0d65e5;--green:#19a342;--text:#f7f7f7;--muted:#9ca3af;--line:#3a3b40}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,Helvetica,sans-serif}
+.app{max-width:720px;margin:auto;min-height:100vh;background:var(--bg)}
+.top{height:105px;background:var(--nav);display:flex;align-items:center;padding:18px 22px 10px;gap:22px;border-bottom:1px solid #303949}
+.menu{font-size:30px;color:#ddd}.title{font-size:25px;font-weight:700}.mic{margin-left:auto;font-size:30px}
+.switch{display:grid;grid-template-columns:1fr 1fr;background:#283548;padding:10px 18px}.switch button{border:0;background:transparent;color:white;font-size:21px;font-weight:700;padding:15px;border-radius:10px}.switch .active{background:#354256}
+.card{margin:16px;border:1px solid #303237;border-radius:8px;padding:16px;background:#151619}
+.searchrow{display:grid;grid-template-columns:1fr 72px;gap:8px}.searchrow input{height:54px;background:#18191c;border:1px solid #4a4b50;border-radius:8px;color:white;font-size:20px;padding:0 14px}.searchrow button{border:0;border-radius:8px;background:var(--green);color:white;font-size:19px;font-weight:700}
+.suggest{position:relative;z-index:5}.suggest div{padding:12px;background:#222;color:#fff;border-bottom:1px solid #444;cursor:pointer}.suggest div small{color:#9aa2ad}
+.chips{display:flex;gap:8px;margin-top:10px;overflow:auto}.chip{white-space:nowrap;padding:8px 11px;border:1px solid #414247;border-radius:20px;color:#d9dde4;background:#1a1b1e}
+.result{margin-top:14px}.head{display:flex;justify-content:space-between;gap:10px}.train-name{font-size:23px;font-weight:800}.route-sub{font-size:18px;color:#aeb4bd;margin-top:5px}.status{background:#174d2c;color:#dff7e7;padding:10px 12px;border-radius:10px;font-weight:700;white-space:nowrap}
+#map{height:330px;border-radius:14px;margin-top:15px;overflow:hidden;border:1px solid #34363b}.leaflet-control{filter:invert(.9) hue-rotate(180deg)}
+.info{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}.infoBox{background:#202125;border-radius:10px;padding:12px}.label{font-size:13px;color:#8f96a1}.value{font-size:17px;font-weight:700;margin-top:4px}
+.route{margin-top:15px}.routeTitle{font-size:20px;font-weight:800;margin-bottom:10px}.stop{display:grid;grid-template-columns:28px 1fr auto;gap:10px;position:relative;padding:9px 0}.dot{width:15px;height:15px;border-radius:50%;background:#b8c0cc;margin:4px 0 0 5px;border:3px solid #1d2025}.stop.done .dot{background:#25c65b}.stop.current .dot{background:#1591ff;box-shadow:0 0 0 5px #173f69}.stop:before{content:"";position:absolute;left:11px;top:20px;bottom:-8px;width:2px;background:#3e4854}.stop:last-child:before{display:none}.sname{font-size:17px;font-weight:700}.scode{color:#8f96a1;font-size:13px;margin-top:2px}.stime{font-size:14px;color:#d6d9df;text-align:right}.currentTag{color:#40a9ff;font-size:12px;font-weight:700;margin-top:3px}
+.bottom{position:sticky;bottom:0;display:grid;grid-template-columns:1fr 1fr;background:#263244;border-top:1px solid #39465a}.bottom button{height:62px;background:transparent;border:0;border-right:1px solid #465164;color:#dce1e8;font-size:18px;font-weight:700}
+.pnr input{width:100%;height:54px;background:#18191c;border:1px solid #4a4b50;border-radius:8px;color:#fff;font-size:19px;padding:0 14px;margin-bottom:10px}.full{width:100%;height:52px;border:0;border-radius:8px;background:var(--green);color:#fff;font-weight:800;font-size:18px}
+.notice{color:#9da4ae;font-size:13px;line-height:1.5;margin:12px 0}.loading{text-align:center;padding:22px;color:#aaa}.error{color:#ff8b8b;background:#3a1e22;padding:12px;border-radius:8px;margin-top:12px}
+@media(min-width:700px){.app{box-shadow:0 0 30px #000}.top{border-radius:0}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top"><div class="menu">☰</div><div class="title">Where is My Train</div><div class="mic">🎙</div></header>
+  <div class="switch"><button class="active" onclick="setMode('express',this)">EXPRESS</button><button onclick="setMode('metro',this)">METRO</button></div>
+
+  <section class="card">
+    <div class="searchrow">
+      <input id="trainInput" inputmode="numeric" placeholder="Train number or name" autocomplete="off">
+      <button onclick="loadTrain()">🔍</button>
+    </div>
+    <div id="suggest" class="suggest"></div>
+    <div class="chips"><span class="chip">🚆 Live status</span><span class="chip">🛤 Route</span><span class="chip">📍 Stations</span></div>
+    <div id="result"></div>
+  </section>
+
+  <section class="card pnr">
+    <h3>PNR Status</h3>
+    <input id="pnrInput" inputmode="numeric" maxlength="10" placeholder="Enter 10 digit PNR">
+    <button class="full" onclick="loadPNR()">Check PNR</button>
+    <div id="pnrResult"></div>
+  </section>
+
+  <div class="bottom"><button onclick="document.getElementById('pnrInput').focus()">⌕ PNR</button><button onclick="alert('Tickets booking can be connected separately.')">☆ TICKETS</button></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+let map, marker, timer, lastData;
+const input=document.getElementById('trainInput'), suggest=document.getElementById('suggest');
+
+input.addEventListener('input', debounce(async ()=>{
+  const q=input.value.trim(); if(q.length<2){suggest.innerHTML='';return}
+  try{
+    const r=await fetch('/api/search?q='+encodeURIComponent(q));
+    const j=await r.json();
+    const rows=(j.data||[]).slice(0,8);
+    suggest.innerHTML=rows.map(x=>`<div onclick="pickTrain('${escapeJs(x.train_number||x.number)}')"><b>${escapeHtml(x.train_number||x.number)}</b> — ${escapeHtml(x.train_name||x.name||'')} <small>${escapeHtml(x.source_code||'')} → ${escapeHtml(x.destination_code||'')}</small></div>`).join('');
+  }catch(e){suggest.innerHTML=''}
+},350));
+
+function pickTrain(n){input.value=n;suggest.innerHTML='';loadTrain()}
+function debounce(fn,ms){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms)}}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function escapeJs(s){return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'")}
+function setMode(mode,btn){document.querySelectorAll('.switch button').forEach(b=>b.classList.remove('active'));btn.classList.add('active')}
+
+async function loadTrain(){
+ const n=input.value.trim().replace(/\D/g,''); if(n.length<4){alert('Train number enter karein');return}
+ clearInterval(timer);
+ const result=document.getElementById('result'); result.innerHTML='<div class="loading">Live railway data load ho raha hai…</div>';
+ await fetchTrain(n);
+ timer=setInterval(()=>fetchTrain(n),60000);
+}
+
+async function fetchTrain(n){
+ try{
+  const r=await fetch('/api/live?train='+encodeURIComponent(n)+'&geometry=true&includeCoordinates=true');
+  const j=await r.json(); if(!r.ok) throw new Error(j.error||j.message||'API error');
+  lastData=j.data||j; renderTrain(lastData);
+ }catch(e){document.getElementById('result').innerHTML='<div class="error">Live data nahi mil paaya: '+escapeHtml(e.message)+'</div>'}
+}
+
+function renderTrain(d){
+ const t=d.train||{}, loc=d.currentLocation||{}, route=d.route||[];
+ const prev=d.previousHalt||{}, next=d.nextHalt||{};
+ const delay=Number(d.delayMinutes||0);
+ const status=(d.status||'unknown').toUpperCase();
+ document.getElementById('result').innerHTML=`
+ <div class="result">
+  <div class="head"><div><div class="train-name">${escapeHtml(d.trainNumber||t.number||'')} · ${escapeHtml(d.trainName||t.name||'Train')}</div>
+  <div class="route-sub">${escapeHtml(t.source?.name||t.source||'')} → ${escapeHtml(t.destination?.name||t.destination||'')}</div></div>
+  <div class="status">${escapeHtml(status)} · ${delay} min late</div></div>
+  <div id="map"></div>
+  <div class="info">
+   <div class="infoBox"><div class="label">Current</div><div class="value">${escapeHtml(loc.stationCode||prev.stationCode||'—')}</div></div>
+   <div class="infoBox"><div class="label">Next station</div><div class="value">${escapeHtml(next.stationName||'—')}</div></div>
+   <div class="infoBox"><div class="label">Speed</div><div class="value">${loc.speedKmh!=null?loc.speedKmh+' km/h':'—'}</div></div>
+   <div class="infoBox"><div class="label">Updated</div><div class="value">${formatTime(d.lastUpdatedAt)}</div></div>
+  </div>
+  <div class="route"><div class="routeTitle">Train route & live position</div>${route.map((s,i)=>`<div class="stop ${s.status==='departed'?'done':''} ${s.sequence===loc.sequence?'current':''}">
+    <div class="dot"></div><div><div class="sname">${escapeHtml(s.stationName||s.stationCode||'')}</div><div class="scode">${escapeHtml(s.stationCode||'')} · ${s.distance??''} km</div>${s.sequence===loc.sequence?'<div class="currentTag">● LIVE TRAIN</div>':''}</div>
+    <div class="stime">${escapeHtml((s.actualArrival||s.scheduledArrival||s.scheduledDeparture||'').slice(11,16)||'—')}</div>
+  </div>`).join('')}</div>
+  <div class="notice">Live position, route coordinates and progress are supplied by RailRadar. The screen refreshes every 60 seconds.</div>
+ </div>`;
+ drawMap(route,loc);
+}
+function drawMap(route,loc){
+ if(map){map.remove();map=null;marker=null}
+ const pts=route.filter(x=>Number.isFinite(x.lat)&&Number.isFinite(x.lng)).map(x=>[x.lat,x.lng]);
+ map=L.map('map',{zoomControl:false});
+ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
+ if(!pts.length){map.setView([22.9,79.0],5);return}
+ const line=L.polyline(pts,{weight:6,opacity:.85}).addTo(map);
+ route.filter(x=>Number.isFinite(x.lat)&&Number.isFinite(x.lng)).forEach(s=>{
+   L.circleMarker([s.lat,s.lng],{radius:5,weight:2,fillOpacity:.9}).addTo(map).bindPopup(`<b>${escapeHtml(s.stationName||s.stationCode)}</b><br>${escapeHtml(s.stationCode||'')}`);
+ });
+ let a=route.findIndex(x=>x.sequence===loc.sequence);
+ if(a<0)a=0;
+ const cur=route[a], nxt=route[a+1];
+ let pos=cur&&Number.isFinite(cur.lat)&&Number.isFinite(cur.lng)?[cur.lat,cur.lng]:pts[0];
+ if(nxt&&Number.isFinite(nxt.lat)&&Number.isFinite(nxt.lng)&&cur&&Number.isFinite(cur.lat)&&Number.isFinite(cur.lng)){
+   const p=Math.max(0,Math.min(1,Number(loc.segmentProgress||0)));
+   pos=[cur.lat+(nxt.lat-cur.lat)*p,cur.lng+(nxt.lng-cur.lng)*p];
+ }
+ const icon=L.divIcon({className:'trainIcon',html:'🚆',iconSize:[38,38],iconAnchor:[19,19]});
+ marker=L.marker(pos,{icon}).addTo(map).bindPopup(`<b>🚆 Live Train</b><br>${escapeHtml(lastData.trainName||'')}<br>Speed: ${loc.speedKmh||'—'} km/h`).openPopup();
+ map.fitBounds(line.getBounds(),{padding:[20,20]});
+}
+function formatTime(x){if(!x)return'—';try{return new Date(x).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}catch{return'—'}}
+
+async function loadPNR(){
+ const p=document.getElementById('pnrInput').value.trim(), out=document.getElementById('pnrResult');
+ if(!/^\d{10}$/.test(p)){out.innerHTML='<div class="error">10 digit PNR enter karein.</div>';return}
+ out.innerHTML='<div class="loading">PNR check ho raha hai…</div>';
+ try{const r=await fetch('/api/pnr?pnr='+p);const j=await r.json();if(!r.ok)throw new Error(j.error||'PNR API error');
+ const d=j.data||j;out.innerHTML='<div class="info">'+Object.entries(d).slice(0,8).map(([k,v])=>`<div class="infoBox"><div class="label">${escapeHtml(k)}</div><div class="value">${escapeHtml(typeof v==='object'?JSON.stringify(v):v)}</div></div>`).join('')+'</div>';
+ }catch(e){out.innerHTML='<div class="error">'+escapeHtml(e.message)+'</div>'}
+}
+</script>
+</body>
+</html>
