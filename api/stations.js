@@ -3,6 +3,7 @@ export default async function handler(req, res) {
     if (req.method !== "GET") {
       return res.status(405).json({
         success: false,
+        data: [],
         error: "Method not allowed"
       });
     }
@@ -29,33 +30,55 @@ export default async function handler(req, res) {
 
     const url =
       "https://api.railradar.in/v1/lookup/search/stations" +
-      "?q=" + encodeURIComponent(q) +
+      "?q=" +
+      encodeURIComponent(q) +
       "&limit=10";
 
     const response = await fetch(url, {
-      method: "GET",
       headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Accept": "application/json"
+        Authorization: `Bearer ${apiKey}`,
+        Accept: "application/json"
       }
     });
 
-    const data = await response.json();
+    const result = await response.json();
 
     if (!response.ok) {
       return res.status(response.status).json({
         success: false,
         data: [],
-        error: data?.error?.message || "RailRadar station search failed"
+        error:
+          result?.error?.message ||
+          `RailRadar returned HTTP ${response.status}`
       });
     }
 
+    const rawStations = Array.isArray(result?.data)
+      ? result.data
+      : [];
+
+    const stations = rawStations
+      .map((station) => ({
+        code:
+          station.code ||
+          station.stationCode ||
+          station.station_code ||
+          "",
+        name:
+          station.name ||
+          station.stationName ||
+          station.station_name ||
+          ""
+      }))
+      .filter(
+        (station) =>
+          station.code.length > 0 &&
+          station.name.length > 0
+      );
+
     return res.status(200).json({
       success: true,
-      data: (data.data || []).map((station) => ({
-        code: station.code,
-        name: station.name
-      }))
+      data: stations
     });
 
   } catch (error) {
