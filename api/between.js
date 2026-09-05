@@ -7,8 +7,14 @@ export default async function handler(req, res) {
       });
     }
 
-    const from = String(req.query.from || "").trim().toUpperCase();
-    const to = String(req.query.to || "").trim().toUpperCase();
+    const from = String(req.query.from || "")
+      .trim()
+      .toUpperCase();
+
+    const to = String(req.query.to || "")
+      .trim()
+      .toUpperCase();
+
     const date = String(req.query.date || "").trim();
 
     if (!from || !to) {
@@ -40,17 +46,19 @@ export default async function handler(req, res) {
       params.set("date", date);
     }
 
-    params.set("live", "true");
+    // First get timetable data reliably.
+    params.set("live", "false");
 
     const url =
-      `https://api.railradar.in/v1/trains/between/${encodeURIComponent(from)}/${encodeURIComponent(to)}` +
-      `?${params.toString()}`;
+      `https://api.railradar.in/v1/trains/between/` +
+      `${encodeURIComponent(from)}/` +
+      `${encodeURIComponent(to)}?${params.toString()}`;
 
     const response = await fetch(url, {
       method: "GET",
       headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Accept": "application/json"
+        Authorization: `Bearer ${apiKey}`,
+        Accept: "application/json"
       }
     });
 
@@ -59,6 +67,9 @@ export default async function handler(req, res) {
     if (!response.ok) {
       return res.status(response.status).json({
         success: false,
+        data: {
+          trains: []
+        },
         error:
           result?.error?.message ||
           `RailRadar returned HTTP ${response.status}`
@@ -70,6 +81,9 @@ export default async function handler(req, res) {
   } catch (error) {
     return res.status(500).json({
       success: false,
+      data: {
+        trains: []
+      },
       error: error?.message || "Internal server error"
     });
   }
